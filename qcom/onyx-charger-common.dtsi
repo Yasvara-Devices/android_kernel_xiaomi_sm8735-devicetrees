@@ -479,6 +479,19 @@
 	800 100
 	65536 200>;
 	enable_fv_dec_by_cc = <1>;
+
+	/*
+	 * Real bypass charging. entry/floor bracket the band the pack is
+	 * allowed to float in: below floor the buck is handed back to refill,
+	 * and bypass only re-arms once soc climbs past entry again.
+	 * deficit_ma is the discharge current that counts as "the input cannot
+	 * carry this load" - the 9V path tops out near 14.4W, so a heavy title
+	 * can legitimately sit under it for a while.
+	 */
+	support_bypass_chg = <1>;
+	bypass_chg_entry_soc = <30>;
+	bypass_chg_floor_soc = <20>;
+	bypass_chg_deficit_ma = <500>;
 };
 
 &soc_limit {

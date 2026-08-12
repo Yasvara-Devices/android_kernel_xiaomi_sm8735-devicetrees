@@ -33,7 +33,8 @@
 			"gpu_cc_ahb",
 			"apb_pclk";
 
-	qcom,gpu-model = "Adreno825";
+	/* Spoofed model string; real part is Adreno825 (chipid below is untouched) */
+	qcom,gpu-model = "Adreno840";
 
 	qcom,chipid = <0x44030000>;
 

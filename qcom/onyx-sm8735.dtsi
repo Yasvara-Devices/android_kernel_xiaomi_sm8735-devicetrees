@@ -305,6 +305,14 @@
 		spi-max-frequency = <19200000>;	//4800000,9600000,15000000,19200000
 		
 		novatek,irq-gpio = <&tlmm 78 0x2008>;
+		/*
+		 * Keep the SPI frame-read thread off the 569-capacity pair
+		 * (cpu0-1).  Under THP every frame it drops is a frame the
+		 * userspace tracker never sees, and touchfeature-service is
+		 * pinned to cpu2-7 by the THP ini, so co-locating both sides
+		 * avoids a cross-cluster hop per frame.
+		 */
+		novatek,irq-thread-cpus = <2 3 4 5 6 7>;
 		//novatek,reset-gpio = <&tlmm 14 0x00>;
 		novatek,lcd_id-gpio1 = <&tlmm 27 0x00>;
 		novatek,lcd_id-gpio2 = <&tlmm 46 0x00>;

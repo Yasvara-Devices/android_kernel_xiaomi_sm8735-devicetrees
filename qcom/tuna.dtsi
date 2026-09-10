@@ -465,8 +465,8 @@
 
 	ramoops_mem: ramoops_region {
 		compatible = "ramoops";
-		reg = <0x0 0xa3500000 0x0 0x400000>;
-		console-size = <0x200000>;
+		reg = <0x0 0xa3500000 0x0 0x200000>;
+		console-size = <0x100000>;
 		/*
 		 * record-size was absent, which means ramoops allocated no dmesg
 		 * zone at all: fs/pstore/ram.c only builds the oops/panic PRZs
@@ -474,22 +474,22 @@
 		 * behind but the free-running console ring. That is what made the
 		 * earlier white-screen bootloop undiagnosable.
 		 *
-		 * The 4M reservation is unchanged - only the split moves, so no
-		 * other consumer of ramoops_mem is affected. pmsg drops 2M -> 1M
-		 * to free space for the dmesg zones:
-		 *
-		 *   4M total - 2M console - 1M pmsg = 1M / 256K = 4 dmesg records
-		 *
-		 * Four records means a bootloop keeps the FIRST few panics instead
-		 * of overwriting them, which matters because the interesting one is
-		 * the first, not the last.
+		 * This region previously overlapped mtdoops_pmsg and
+		 * bootmonitor_pmsg (all three claimed 0xa3500000+4M), so every
+		 * consumer corrupted the others' headers and ramoops always
+		 * reported "found existing invalid buffer". The 4M carveout is
+		 * now split, no new memory taken:
+		 *   ramoops     0xa3500000 + 2M (console 1M, pmsg 512K,
+		 *                                2 x 256K dmesg records)
+		 *   mtdoops     0xa3700000 + 1M
+		 *   bootmonitor 0xa3800000 + 1M
 		 *
 		 * max-reason 3 = KMSG_DUMP_EMERG, so panic + oops + emergency
 		 * restart are all captured. The default is KMSG_DUMP_OOPS (2);
 		 * going to 5 (KMSG_DUMP_MAX) would also record every clean
 		 * shutdown, which just churns the zones.
 		 */
-		pmsg-size = <0x100000>;
+		pmsg-size = <0x80000>;
 		record-size = <0x40000>;
 		max-reason = <3>;
 	};

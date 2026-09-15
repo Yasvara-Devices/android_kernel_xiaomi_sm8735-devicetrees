@@ -21,20 +21,109 @@ mi,mdss-dsi-round-corner-off-command-state = "dsi_hs_mode";
 /*timming common*/
 qcom,mdss-dsi-panel-width = <1280>;
 qcom,mdss-dsi-panel-height = <2772>;
-qcom,mdss-dsi-h-front-porch = <42>;
-qcom,mdss-dsi-h-back-porch = <32>;
-qcom,mdss-dsi-h-pulse-width = <16>;
+/* Blanking trimmed. These EXACT values are read out of the owner's own
+ * dtbo_onyx_138only.img, which genuinely ran 138Hz on this physical panel at
+ * a 1171750032 bit clock. They are not derived, they are copied from a
+ * configuration with a working device behind it.
+ *
+ *     h_blank 58 (was 90) -> h_total_dce 485 (was 517)
+ *     v_blank 38 (was 76) -> v_total     2810 (was 2848)
+ *
+ * BLANKING IS A TIME BUDGET, NOT SPARE BANDWIDTH. This is a BURST-mode video
+ * panel: the controller drains a line into the DSI FIFO at the full link rate
+ * (faster than the pixel rate) and then idles, so horizontal blanking is the
+ * window the MDP gets to REFILL that FIFO before the next line's burst. What
+ * matters is therefore nanoseconds, not pixels:
+ *
+ *     h_blank / (h_total_dce * v_total * fps)
+ *
+ * Measured on this panel:
+ *     463 ns  stock 90px @ 132Hz          -> clean
+ *     308 ns  owner  58px @ 138Hz         -> clean
+ *     228 ns  44px (HFP/HBP/HSW 20/20/4)  -> 1300+ sde_encoder_underrun,
+ *                                            heavy green streaking
+ *
+ * So the underrun cliff is between 228 and 308 ns. Treat 308 as the floor --
+ * it is the tightest value with a working device behind it. Note the failure
+ * is rate-independent: DFPS only stretches VERTICAL porches, so the line time
+ * is identical at 144/90/60 and dropping to 60Hz does not rescue it.
+ *
+ * The 20/20/4 mistake was citing nt37801's *cmd* modes as precedent. Cmd mode
+ * has no continuous scan to keep fed, so it has no burst-FIFO refill problem;
+ * nt37801's *video* modes ship HFP=100. Never use a cmd-mode panel as
+ * precedent for a video-mode porch.
+ *
+ * VERTICAL blanking is deliberately left at STOCK even though the owner's
+ * image ran VFP 18. Trimming it too is what caused the in-display
+ * fingerprint (LHBM) flash:
+ *
+ *   - The DDIC 0x3B slot 0 says VFP 56. Running host VFP 18 against it makes
+ *     the DDIC's internal frame model 38 lines longer than the real scan, so
+ *     its demura / overdrive / DC-dimming emission drifts against the actual
+ *     raster. Static content hides that; LHBM, which drives a local bright
+ *     circle through exactly that path, does not -- it flashes.
+ *   - VFP 18 also halves the vblank window that DSI command DMA lives in
+ *     (qcom,mdss-dsi-dma-schedule-line = <1>): 193us -> 98us. The LHBM
+ *     enable/disable burst has to fit in there.
+ *
+ * Fixing the mismatch by writing 18 into the DDIC slot instead was tried and
+ * is NOT safe -- see the 0x3B note in the -vid dtsi. Move the host to the
+ * DDIC's stock value, not the other way round.
+ *
+ * The bandwidth still works out: h_blank 58 with STOCK v_total 2848 needs
+ * 1143.70 MHz for 138Hz, a 1.0245x margin at this clock, and 304ns of line
+ * blanking -- essentially identical to the proven 308ns.
+ *
+ * regenerate: display_research/tools/porch_plan.py --ladder --plan <fps> */
+qcom,mdss-dsi-h-front-porch = <42>;	/* STOCK */
+qcom,mdss-dsi-h-back-porch = <32>;	/* STOCK */
+qcom,mdss-dsi-h-pulse-width = <16>;	/* STOCK */
 qcom,mdss-dsi-v-back-porch = <18>;
-qcom,mdss-dsi-v-front-porch = <56>;
+qcom,mdss-dsi-v-front-porch = <56>;	/* STOCK -- must equal DDIC 0x3B slot 0 */
 qcom,mdss-dsi-v-pulse-width = <2>;
 qcom,mdss-dsi-h-sync-pulse = <0>;
 qcom,mdss-dsi-h-left-border = <0>;
 qcom,mdss-dsi-h-right-border = <0>;
 qcom,mdss-dsi-v-top-border = <0>;
 qcom,mdss-dsi-v-bottom-border = <0>;
-qcom,mdss-dsi-panel-clockrate = <1110990000>;
+/* 138Hz base, at the owner's OWN measured-good bit clock.
+ *
+ *     fps_max = bit_clk * lanes / bpp / (h_total_dce * v_total)
+ *             = bit_clk * 4 / 24 / (485 * 2848)
+ *
+ * 1171750032 is read straight out of the owner's dtbo_onyx_138only.img, which
+ * ran 138Hz on this physical panel.
+ *
+ * WHY NOT 1220000000, which is also proven good?
+ * Because it is only proven good with STOCK blanking (the 132Hz build ran two
+ * clean days on it). The one time 1220000000 was tried with TRIMMED blanking
+ * it failed to lock -- the panel free-ran at 144.4Hz against a 138Hz mode.
+ * That test also carried VFP 18 and DDIC slot0 = 18, and VFP 18 was later
+ * shown to be independently bad, so the failure MAY be fully explained by VFP
+ * and say nothing about the clock. But that is a hypothesis, not a result:
+ * four things changed at once and none of them were isolated.
+ *
+ *   ==> "1220000000 + h_blank 58..62 + VFP 56 + slot0 56" is UNTESTED.
+ *       It would allow 142Hz at a 1.0282x margin and 314ns of blanking, both
+ *       better than this config. Worth trying -- but as its OWN experiment,
+ *       changing only the clock, not bundled with a rate change.
+ *
+ * Hard ceiling either way: 1280000000 corrupts the DDIC receiver (with ZERO
+ * MDP underruns, which is what rules out the MDP), and 1333200000 likewise.
+ * Nothing is logged when the receiver fails -- the corruption is on the wire
+ * downstream of the DSI controller. Never sign off a clock raise from logs.
+ *
+ * Do NOT size this from the burst-mode payload rate; that under-reads by
+ * ~20% and silently clamps the frame rate with nothing logged. */
+qcom,mdss-dsi-panel-clockrate = <1250000000>;
 
-qcom,mdss-dsi-panel-phy-timings = [00 24 0A 0A 1A 18 0A 0A 09 02 04 00 1E 0F];
+/* qcom,mdss-dsi-panel-phy-timings deliberately ABSENT.
+ * The array that used to live here was calibrated for 1110990000 and is
+ * wrong at any other bit clock -- raising the clock underneath it desyncs
+ * the lanes and streaks the frame. dsi_phy.c:1058 only calls
+ * calculate_timing_params() when is_phy_timing_present is false, i.e. when
+ * this property does not parse. Leave it deleted so lane timing is derived
+ * from the actual clock. Do not "restore" it. */
 qcom,display-topology = <1 1 1>;
 qcom,default-topology-index = <0>;
 

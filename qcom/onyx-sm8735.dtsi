@@ -335,6 +335,21 @@
 &qupv3_se4_spi {
 	status = "ok";
 	qcom,rt;
+	/*
+	 * Controller ceiling, raised from the 50 MHz in tuna-qupv3.dtsi.
+	 * spi-msm-geni reads this into the master's max_speed_hz, and both
+	 * spi_setup() and __spi_validate() clamp every slave against it, so
+	 * 50 MHz silently capped anything asking for more -- a request for
+	 * 61.44 MHz read back as 50 MHz with nothing logging the clamp.
+	 *
+	 * This raises only the ceiling. The rate actually used is the child
+	 * novatek node's spi-max-frequency below, so boot is unchanged; this
+	 * just stops the controller from vetoing a runtime bump via
+	 * /proc/xm_htc_spi_speed. SE4's RCG tops out at 120 MHz and the
+	 * current voltage corner allows 75 MHz, so 100 is a ceiling the
+	 * hardware can express without a corner change.
+	 */
+	spi-max-frequency = <100000000>;
 	pinctrl-0 = <&mi_ts_spi_mosi_active>, <&mi_ts_spi_miso_active>,
 				<&mi_ts_spi_clk_active>;
 	pinctrl-1 = <&mi_ts_spi_sleep>, <&mi_ts_clk_sleep>;
@@ -344,7 +359,28 @@
 		compatible = "novatek,NVT-ts-spi";
 		reg = <0>; //Same as CS ID
 		status = "ok";
-		spi-max-frequency = <19200000>;	//4800000,9600000,15000000,19200000
+		/* Stock is 19200000; the trailing list is what Novatek
+		 * validated. 19.2 MHz is TCXO-direct (M/N/D 1,0,0), every
+		 * rate above it comes off GPLL0 through a fractional MND
+		 * divider. The QUP side is not the limit -- SE4's RCG allows
+		 * 75 MHz at the current voltage corner -- the IC's SPI
+		 * receiver is.
+		 *
+		 * Corrected: this used to cite ftbl_gcc_qupv3_wrap0_s0 and
+		 * claim the table steps 48 -> 64 with no 50. Touch is on
+		 * wrap1_s4, whose live clk_list_rates is 19.2/32/48/61.44/
+		 * 64/96/100/120, and get_spi_clk_cfg() divides, so 50 MHz is
+		 * reachable exactly as sclk 100 MHz / 2. There is also a
+		 * 61.44 rung between 48 and 64.
+		 *
+		 * Verify a candidate rate with tools/nvt_spi_validate.sh,
+		 * which counts the driver's own frame-header CRC failures
+		 * under real touch load. Do NOT use nvt_spi_integrity.sh for
+		 * this: it drives the bus itself, so with the screen on it
+		 * fights the driver, kills touch for the duration, and
+		 * reports the contention as clock corruption.
+		 */
+		spi-max-frequency = <48000000>;	//4800000,9600000,15000000,19200000
 		
 		novatek,irq-gpio = <&tlmm 78 0x2008>;
 		/*

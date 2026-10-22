@@ -101,6 +101,7 @@
         si,si_pa_disable_pin = <0x0>;
         si,si_pa_reset = <&tlmm 0x80 0x0>;
         si,si_pa_type = "sia9187";
+        spksw-gpio = <&tlmm 0xB7 0x0>;
     };
 };
 

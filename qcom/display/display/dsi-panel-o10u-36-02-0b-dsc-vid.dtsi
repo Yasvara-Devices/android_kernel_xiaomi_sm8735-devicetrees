@@ -74,38 +74,14 @@
 		qcom,mdss-dsi-pan-enable-dynamic-fps;
 		qcom,mdss-dsi-pan-fps-update =
 			"dfps_immediate_porch_mode_vfp";
-		/* 138Hz base. DFPS derives every rate from timing@0 by adding
-		 * porches, so the top rate has to BE the base. Three rates only:
-		 * the DDIC has three proven gamma banks (0x2F 00/01/02) and a
-		 * fourth slot at offset 12 that stock never programs.
-		 *
-		 * 138 is reached by TRIMMING BLANKING at the proven-good
-		 * 1220000000 bit clock -- NOT by raising the clock. Two hard limits
-		 * bound this, both measured on the physical panel, and both showing
-		 * the identical green-diagonal-streak symptom despite completely
-		 * different causes:
-		 *
-		 *   BIT CLOCK -- the DDIC receiver. 1280000000 corrupts with ZERO
-		 *       MDP underruns (which is what rules out the MDP and pins it on
-		 *       the receiver); 1333200000 likewise. So the limit is between
-		 *       1220 and 1280, and the clock we ship is already within 5% of
-		 *       the panel's hard limit. Do not raise it.
-		 *   BLANKING -- the MDP burst-FIFO refill window. 44px/228ns gives
-		 *       1300+ sde_encoder_underrun; the owner's own 138only image
-		 *       proves 58px/308ns is fine. See the -video-common dtsi.
-		 *
-		 * This config sits on the safe side of both: clock 1220000000, and
-		 * exactly the owner's proven 58px of blanking. At 138Hz that is
-		 * 308ns (identical to the proven point) with a 1.081x clock margin
-		 * (BETTER than the 1.038x the owner's image ran at). */
-		qcom,dsi-supported-dfps-list = <135 90 60>;
+		qcom,dsi-supported-dfps-list = <120 90 60>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0 {
 				qcom,mdss-dsi-video-mode;
 				#include "dsi-panel-o10u-36-02-0b-dsc-video-common.dtsi"
 				cell-index = <0>;
-				qcom,mdss-dsi-panel-framerate = <135>;
+				qcom,mdss-dsi-panel-framerate = <120>;
 				//qcom,dsi-mode-te-width-us = <245>;
 
 				qcom,mdss-dsi-on-command = [
@@ -158,19 +134,11 @@
 					39 00 00 40 00 00 02 6F 04
 					39 00 00 40 00 00 02 F7 04
 					39 00 00 40 00 00 02 35 00
-					/* DDIC porch slots: <VBP+VSW:16><VFP:16>, slot at
-					 * offset 4*N, selected by gamma bank 0x2F = N.
-					 * Must match the host VFP the driver derives for
-					 * each rate or the DDIC's demura/overdrive timing
-					 * drifts against the scan (low-grey crush).
-					 * Retuned for a 135Hz base -- regenerate with
-					 * display_research/tools/porch_plan.py \
-					 *     --plan 135 --candidate 1 */
-					39 00 00 40 00 00 05 3B 00 14 00 38	/* slot 0, 0x2F 00 -> 135Hz, VFP 56 (== stock) */
+					39 00 00 40 00 00 05 3B 00 14 00 38
 					39 00 00 40 00 00 02 6F 04
-					39 00 00 40 00 00 05 3B 00 14 05 C8	/* slot 4, 0x2F 01 -> 90Hz, VFP 1480 */
+					39 00 00 40 00 00 05 3B 00 14 03 DC
 					39 00 00 40 00 00 02 6F 08
-					39 00 00 40 00 00 05 3B 00 14 0E 20	/* slot 8, 0x2F 02 -> 60Hz, VFP 3616 */
+					39 00 00 40 00 00 05 3B 00 14 0B 58
 					39 00 00 40 00 00 03 51 00 00
 					39 00 00 40 00 00 02 71 00
 					39 00 00 40 00 00 09 8D 00 00 04 FF 00 00 0A D3

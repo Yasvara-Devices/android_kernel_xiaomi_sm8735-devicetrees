@@ -33,6 +33,8 @@
 			#size-cells = <0>;
 
 			qcom,initial-pwrlevel = <8>;
+			/* 300 and 150 MHz share 515's voltage and save little: floor at 515 */
+			qcom,initial-min-pwrlevel = <8>;
 			qcom,speed-bin = <0>;
 
 			/* 1162 MHz - OC */
@@ -308,6 +310,8 @@
 			#size-cells = <0>;
 
 			qcom,initial-pwrlevel = <8>;
+			/* 300 and 150 MHz share 515's voltage and save little: floor at 515 */
+			qcom,initial-min-pwrlevel = <8>;
 			qcom,speed-bin = <0xf2>;
 
 			/* 1162 MHz - OC */

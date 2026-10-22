@@ -42,9 +42,51 @@
 	};
 };
 
-&qseecom_ta_mem {
-		size = <0x0 0xc800000>;
+/*
+ * &qseecom_ta_mem override REMOVED 2026-08-25.
+ *
+ * Xiaomi raised this pool 20 MB -> 200 MB (size = <0x0 0xc800000>) for the
+ * qcom,qseecom-ta dma-heap (/dev/dma_heap/qcom,qseecom-ta). Measured live
+ * via CMA debugfs across fingerprint unlock x10, Bank Jago secure keypad
+ * and normal daily use:
+ *
+ *   qseecom_ta_region: used=0MB / pool_max=200MB   (every snapshot)
+ *   qseecom_region:    used=2MB / pool_max=20MB    (classic TAs fit here)
+ *   trust_ui_vm:       68/68 MB  <- UDFPS/TUI lives HERE, not in ta_mem
+ *   oem_vm:            56/56 MB  <- Xiaomi trustlets live HERE
+ *
+ * With the override gone the node falls back to the SoC baseline
+ * (tuna.dtsi: 20 MB, alignment 4 MB) -- the value Qualcomm ships when not
+ * second-guessed. Net effect: ~180 MB of CMA-restricted address space
+ * returns to general System RAM. The remaining 20 MB pool is reusable;
+ * idle capacity still serves movable pages.
+ *
+ * FAILURE SIGNATURE (loud, not silent): DRM L1 playback (Widevine) is the
+ * one scenario never observed yet -- if it ever logs
+ * "qseecom/dma_heap ... failed to allocate" raise this back via
+ *   &qseecom_ta_mem { size = <0x0 0x4000000>; };   (64 MB step)
+ */
+
+/*
+ * &non_secure_display_memory shrunk 200 MB -> 64 MB (2026-08-25).
+ *
+ * Backs the qcom,display dma-heap (tuna-dma-heaps.dtsi:16) used for
+ * contiguous display special-case buffers (continuous splash / WFD-class
+ * paths). Measured 0 MB in use with the panel fully active -- the normal
+ * DSI pipeline never touches it. Pool stays reusable; failure mode if some
+ * rare path ever needs more is a LOUD allocation error at the moment of
+ * use (not boot-critical).
+ *
+ * REGRESSION GATE before banking this cut: screen-record a DRM video,
+ * cast/Miracast once, screenshot during protected playback. Any
+ * "qcom,display heap alloc failed"-class dmesg -> revert to
+ *   &non_secure_display_memory { size = <0x0 0xc800000>; };
+ */
+&non_secure_display_memory {
+	size = <0x0 0x4000000>;
 };
+
+
 
 &dwc3_0 {
 	usb-phy = <&eusb2_phy0>, <&usb_nop_phy>;

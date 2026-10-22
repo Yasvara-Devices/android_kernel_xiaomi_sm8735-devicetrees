@@ -117,11 +117,20 @@
 		reg = <0x0 0x82700000 0x0 0x100000>;
 	};
 
-	qdss_apps_mem: qdss_apps_region@82800000 {
-		compatible = "shared-dma-pool";
-		reg = <0x0 0x82800000 0x0 0x2000000>;
-		reusable;
-	};
+	/*
+	 * qdss_apps_region (32 MB @ 0x82800000, shared-dma-pool, reusable) was
+	 * removed 2026-08-25: it is the QDSS/coresight ETR sink pool for the
+	 * APPS core, and CONFIG_CORESIGHT is =n in this tree (onyx_perf.config),
+	 * so no driver ever claims it -- verified zero in-tree consumers
+	 * (grep qdss_mem|qcom,qdss across drivers/ = empty). The only phandle
+	 * user (tmc-modem in tuna-coresight.dtsi) had its memory-region line
+	 * removed in the same change.
+	 *
+	 * RESTORE TOGETHER: re-add this node AND the tmc_modem memory-region
+	 * line whenever CONFIG_CORESIGHT comes back for hardware trace work.
+	 * The freed range simply returns to System RAM from the UEFI/XBL map;
+	 * all neighbouring regions use fixed reg addresses, nothing shifts.
+	 */
 
 	dsm_partition_1_mem: dsm_partition_1_region@84a00000 {
 		no-map;

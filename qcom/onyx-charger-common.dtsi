@@ -119,6 +119,8 @@
 
 &mca_strategy_buckchg_class {
 	status = "ok";
+	in_pd = <2000>;
+	in_pps = <2000>;
 	ffc_temp_low = <15>;
 	ffc_temp_high = <48>;
 	pmic_fv_compensation = <10>;
@@ -170,6 +172,19 @@
 	 * 22000 ceiling outside every band in select_cp_work_mode_by_current(). */
 	cp-mode-switch-threshold = <0 3000 2000 5000 2500 22000>;
 	pmic-chg-need-fixed-volt;
+	/*
+	 * Dynamic SC8581 Variable Frequency Control (VFC):
+	 * Optimal fsw scales with output current (fsw_opt ~ Iout):
+	 *   - 300-450 kHz at light/medium load & CP-Bypass cuts switching loss 20-35%
+	 *   - 600-750 kHz at 12-22 A minimizes flying-cap SSL ripple loss
+	 */
+	support_cp_vfc = <1>;
+	vfc_iout_fsw_map =
+		"16000", "750",
+		"11000", "600",
+		"7000", "450",
+		"3500", "350",
+		"0", "300";
 
 	vstep_para =
 		"1", "2000", "2",
@@ -644,10 +659,19 @@
 
 &mca_vbat_ovp_mon {
 	support_global_fv;
-	vbat_ovp_threshold_ffc = <4570>;
-	vbat_ovp_threshold_normal = <4520>;
-	vbat_ovp_threshold_ffc_gl = <4470>;
-	vbat_ovp_threshold_normal_gl = <4420>;
+	/*
+	 * Cell CV targets on onyx (XM80@ 1S Si-C):
+	 *   CN/IN : 4570 mV FFC / 4520 mV normal
+	 *   Global: 4580 mV FFC / 4530 mV normal
+	 * Keep SW VBAT OVP ~30-40 mV above CV (+15 mV hys) and still strictly
+	 * below SC8581 HW bat-ovp-alarm (4650 mV) / bat-ovp (4750 mV).
+	 * Previous _gl values (4470/4420) tripped OVP mid-FFC (~75% SoC) and
+	 * killed normal CV at ~96-98% SoC.
+	 */
+	vbat_ovp_threshold_ffc = <4610>;
+	vbat_ovp_threshold_normal = <4550>;
+	vbat_ovp_threshold_ffc_gl = <4620>;
+	vbat_ovp_threshold_normal_gl = <4560>;
 	status = "ok";
 };
 

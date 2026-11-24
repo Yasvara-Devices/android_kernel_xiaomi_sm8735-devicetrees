@@ -119,8 +119,10 @@
 
 &mca_strategy_buckchg_class {
 	status = "ok";
-	in_pd = <2000>;
-	in_pps = <2000>;
+	in_pd = <3000>;
+	in_pps = <3000>;
+	chg_pd = <3000>;
+	chg_pps = <3000>;
 	ffc_temp_low = <15>;
 	ffc_temp_high = <48>;
 	pmic_fv_compensation = <10>;

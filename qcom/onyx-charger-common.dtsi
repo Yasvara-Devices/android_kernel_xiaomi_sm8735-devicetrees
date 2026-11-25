@@ -153,6 +153,12 @@
 	 */
 	div_single_curr = <4500 11000 22000>;
 	div_max_curr = <5000 12000 22000>;
+	/*
+	 * Ceiling for PPS sources without Xiaomi UVDM auth (vivo, Samsung,
+	 * Anker, ...). Matches div_max_curr so a 100 W PPS brick runs like a
+	 * Xiaomi one; HOS4 stock ships <4500 11000 17600>.
+	 */
+	non_mi_pps_max_curr = <5000 12000 22000>;
 	max_power = <120000>;
 	ibus_compensation = <600 300 200>;
 	qc_normal_charge_fv = <4500>;
